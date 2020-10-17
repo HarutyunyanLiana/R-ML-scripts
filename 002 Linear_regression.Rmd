@@ -1,0 +1,362 @@
+---
+title: "Machine Learning | Homework 2"
+author: "Liana Harutyunyan"
+date: "February 23, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(ggplot2)
+library(ISLR)
+library(GGally)
+library(ggcorrplot)
+library(dplyr)
+library(car)
+```
+
+### Problem 1: Use set.seed(1) in random functions:  
+
+**a) Create a random vector $X$ containing 100 observations drawn from a N(0, 1) distribution (score=3).**  
+```{r}
+X <- rnorm(100, mean = 0, sd = 1)
+```
+
+**b) Create a vector $e$ containing 100 observations drawn from a (0, 0.25) distribution (score=3).**  
+```{r}
+e <- rnorm(100, mean = 0, sd = 0.25)
+```
+
+**c) Generate a vector $Y$ according to the model $Y = -1 + 0.5X + e$ (score=3).**
+```{r}
+Y <- -1 + 0.5*X + e
+```
+
+**d) Create a scatterplot displaying the relationship between $X$ and $Y$. Comment on what you observe (score=3).**
+```{r fig.height = 3, fig.width=5}
+ggplot() + 
+  geom_point(aes(x = X, y = Y)) + 
+  theme_minimal() + 
+  labs(title = "Relationship between X and Y")
+```
+  
+  
+As it can be seen from the graph, there is a relationship between X and Y, which is linear and moreover their correlation is positive.  
+
+**e) Fit a least squares linear model to predict $Y$ using $X$. Use summary(x) and comment on the model obtained. How do $\hat{\beta_0}$ and $\hat{\beta_1}$ compare to $\beta_0$ and $\beta_1$ (score=3)?**
+```{r}
+model_1 <- lm(Y ~ X)
+summary(model_1)
+```
+As we can see as expected their relationship is really strong. Also $\beta_0 = -1$ and $\hat{\beta_0} = -1.00807$, so they are almost the same, and same about $\beta_1 = 0.5$ and $\hat{\beta_1} = 0.51220$.  
+
+**f) Display the least squares line on the scatterplot obtained in d). Draw the population regression line on the plot, in a different color. Use the legend() command to create an appropriate legend (score=4).**  
+```{r fig.height = 3, fig.width=6}
+ggplot() + 
+  geom_point(aes(x = X, y = Y)) + 
+  geom_abline(aes(intercept = model_1$coefficients[1], slope = model_1$coefficients[2], color = "Regression")) + 
+  geom_abline(aes(intercept = -1, slope = 0.5, color = "True Population")) +
+  scale_color_manual(values = c("blue", "red")) + 
+  labs(title = "Regression Line VS True Population Line", colour = "Lines") + 
+  theme_minimal()
+```
+  
+  
+**g) Fit a polynomial regression model that predicts $Y$ using $X$ and $X^2$. Is there evidence that the quadratic term improves the model fit? Explain your answer (score=6).**  
+```{r}
+model_1_2 <- lm(Y ~ poly(X, 2))
+summary(model_1_2)
+```
+Now we can compare the model statistics: $RSE$, $R^2$. The model with quadratic term has RSE of 0.2342, while the model with only linear term has RSE of 0.2373. Moreover, both adjusted and multiple $R^2$ also decreased a little in the model with quadratic term.  
+
+**h) What are the confidence intervals for $\beta_0$ and $\beta_1$ based on the original data set, the noisier data set, and the less noisy data set? Comment on your results (score=5).**
+```{r}
+e_much_noise <- rnorm(100, mean = 0, sd = 0.5)
+e_less_noise <- rnorm(100, mean = 0, sd = 0.125)
+
+Y_much_noise <- -1 + 0.5*X + e_much_noise
+Y_less_noise <- -1 + 0.5*X + e_less_noise
+
+model_1_much_noise <- lm(Y_much_noise ~ X)
+model_1_less_noise <- lm(Y_less_noise ~ X)
+
+```
+So for the original data, where the error term was from N(0, 0.25), the confidence intervals for coefficients are:
+```{r}
+confint(model_1)
+```
+
+For the data with much noise (N(0, 0.5)):
+```{r}
+confint(model_1_much_noise)
+```
+
+And for the data with less noise from N(0, 0.125):
+```{r}
+confint(model_1_less_noise)
+```
+
+As we can see, the lesser the noise, the smaller is the confidence interval for coefficients. 
+
+___  
+
+
+### Problem 2: Use “Auto” data set (“ISLR” package).
+
+First lets read the data:
+```{r}
+data("Auto")
+```
+
+**a) Perform a simple linear regression with “mpg” as the response and “horsepower” as the predictor (score=2). Use the summary() function to print the results. Explain the output:**
+
+```{r}
+model_2 <- lm(mpg ~ horsepower, data=Auto)
+summary(model_2)
+```
+**I. Is there a relationship between the predictor and the response (score=2)?**
+As we can see the p-value for horsepower is very small which gives strong evidence that our predictor and response, mpg and horsepower respectively have a relationship.
+
+**II. How strong is the relationship between the predictor and the response (score=2)?**
+We can answer to this question using residual error relative to response and $R^2$ statistic.  
+To calculate the first one, we need to calculate mean of response:
+```{r}
+mean(Auto$mpg)
+```
+And we have the RSE from model summary: 4.906.
+So RSE relative to the response variable will be 0.2092475, so about 20%:
+```{r}
+4.906 / 23.44592
+```
+What about $R^2$, it is approximately 0.6 which says that about 60% of variance in MPG variable can be explained using the Horsepower. 
+
+**III. What is the predicted “mpg” associated with a “horsepower” of 98 (score=2)?**
+
+```{r}
+predict(model_2, newdata = data.frame(horsepower = 98))
+```
+**IV. What are the associated 95% confidence and prediction intervals (score=2)?**  
+By default the function computes 95% prediction and cinfidence intervals, so we do not have to specify that.
+
+```{r}
+predict(model_2, newdata = data.frame(horsepower = 98),
+      interval = "confidence")
+```
+So the Confidence interval is [23.97308; 24, 96108].
+
+```{r}
+predict(model_2, newdata = data.frame(horsepower = 98),
+      interval = "prediction")
+```
+And Prediction interval is [14.8094; 34.12476].
+
+**b) Plot the response and the predictor. Use the abline() function to display the least squares regression line (score=2).**
+
+```{r fig.height = 3, fig.width=6}
+ggplot(Auto, aes(x = horsepower, y = mpg)) + 
+  geom_point() + 
+  geom_abline(intercept = model_2$coefficients[1], 
+              slope = model_2$coefficients[2], 
+              color = "cyan") + 
+  theme_minimal() + 
+  labs(x = "Horsepower", y = "MPG", 
+       title = "Response, Predictor and Regression line")
+```
+  
+  
+**c) Produce diagnostic plots of the least squares regression fit. Comment on any problems you see with the fit (score=4).**
+
+```{r}
+par(mfrow=c(2,2))
+plot(model_2)
+```
+
+The plot of *Residuals vs Fitted* has a pattern which looks like U-shape, which means non-linear relationship between the response and predictor variables.  
+The second *Normal Q-Q* plot showing if residuals are normally distributed. In our case they mainly are lined well on the straight dashed line, but also there are some resudials that do not follow that pattern.  
+From the third plot, we can see that the assumption about the constant variance of error terms is not proved.
+
+**d) Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage (score=4)?**  
+
+The last plot titled as *Residuals vs Leverage* shows the presense of a few outliers (bigger than 2 or smaller than -2) and few high leverage points (for example 117). Those points are influential cases, and omitting these observations from the data may lead to different result of regression model.  
+
+
+___  
+
+### Problem 3: Use “Carseats” data set (“ISLR” package).  
+
+First lets see the structure of the data:
+```{r}
+data("Carseats")
+str(Carseats)
+```
+
+**a) Fit a multiple regression model to predict “Sales” using “Price”, “Urban”, and “US” (score=2).**
+
+```{r}
+model_3 <- lm(Sales ~ Price + Urban + US, data = Carseats)
+```
+
+**b) For which of the predictors can you reject the null hypothesis $H_0$: $\beta_j = 0$ (score=2)?**
+
+To answer the question above, let's see the summary of the model and p-values for our predictors.
+```{r}
+summary(model_3)
+```
+As we can see the p-values for Price and US are small enough, so we reject the null hypothesis for these two variables.
+
+**c) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there is evidence of association with the outcome (score=4).?**
+```{r}
+model_3_1 <- lm(Sales ~ Price + US, data = Carseats)
+```
+
+**d) How well do the models in a) and c) fit the data (score=2)?**  
+
+For comparison do the summary of the second model, and compare model fitting statistics.
+```{r}
+summary(model_3_1)
+```
+
+As we can see the RSE of the first fitted model was 2.472, and one from this model is 2.469. So we have a small but still important improvement in the model.
+
+**e) Using the model from c), obtain 95% confidence intervals for the coefficient(s) (score=2).** 
+```{r}
+confint(model_3_1)
+```
+
+**f) Produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit (score=4).**
+
+```{r}
+par(mfrow=c(2,2))
+plot(model_3_1)
+```
+As we can see from the first graph the relationship between predictors and response is linear and the fit is quite good.  
+The *Normal Q-Q* graph also shows quite good results. The resudials are lined properly. So they are normally distributed.  
+The *Scale Location* graph shows that residuals are spreaded equally on the range of predictors, as the line is horizontal, and points are distributed equally.    
+So, the fit was quite a good one.
+
+**g) Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage (score=4)? **
+
+From the last graph we can see that there is not much evidence for leverage points in the data (although 368 can be considered as one). But we can see certainly several outliers (near 3 and -3). 
+
+___  
+
+### Problem 4: Use “Auto” data set (“ISLR” package).
+
+**a) Produce a scatterplot matrix which includes all of the variables in the data set (score=2).**
+```{r}
+pairs(Auto)
+```
+Or using the ggplot library:
+
+```{r message = FALSE}
+Auto %>%
+   select(-name) %>%
+   ggpairs()
+```
+
+**b) Compute the matrix of correlations between the variables. You will need to exclude the “name” variable, which is qualitative (score=2).**
+```{r}
+Auto_num <- Auto %>% select(-name)
+corr <- round(cor(Auto_num), 3)
+ggcorrplot(corr, method = "circle", lab = TRUE, lab_size = 2)
+```
+
+**c) Perform a multiple linear regression with “mpg” as the response and all other variables except “name” as the predictors (score=2). Use the summary() function to print the results. Comment on the output:**  
+**I. Is there a relationship between the predictors and the response (score=2)?** 
+**II. Which predictors appear to have a statistically significant relationship to the response (score=2)?**  
+**III. What does the coefficient for the “year” variable suggest (score=2)?**  
+
+```{r}
+model_4 <- lm(mpg ~ . , data = Auto_num)
+summary(model_4)
+```
+I. Yes, there is a relationship between the response variable and some of the predictors.    
+II. As we can see from the p-values, all variables except **cylinders, horsepower and accelaration** have significant relationship with the response.   
+III. The coefficient for the **year** variable is 0.750773, which means that if other variables are constant, 1 year increase will increase mpg by 0.750773.  
+
+
+**d) Produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit (score=4).**
+```{r}
+par(mfrow=c(2,2))
+plot(model_4)
+```
+
+From the *Residuals vs Fitted* graph, we can see that the red line has a kind of "U-shape", which as indicated before is a sign for non-linear relationship between predictor and response variables.  
+The second graph shows that mainly the residualls are distributed normally.  
+The *Scale-Location* graph shows that the residuals are distributed equally among the range of predictors.  
+So the results are mainly good.  
+
+
+**e) Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage (score=4)?**  
+
+What about the Leverages and Outliers, the plot of standardized Residuals VS Leverage shows the presence of a few outliers (for example the points 327) and a high leverage point (point 14). To make sure, we are right, for this exercise lets consider other plots as well, besides the ones above:  
+(keeping in mind that in our case n = 392, and p = 7)
+
+```{r}
+plot(predict(model_4), rstudent(model_4))  # Studentized Residuals vs Fitted values
+abline(h = -3, col = 'red')
+abline(h = 3, col = 'red')               
+which(abs(rstudent(model_4))>3)           # for identifying outliers.
+
+
+plot(hatvalues(model_4))                   
+abline(h=2*8/392, col = 'red')           # Often use 2(p+1)/n or 3(p+1)/n threshold
+which(hatvalues(model_4)>2*8/392)
+
+abline(h=3*8/392, col = 'red')           # to determine high leverage points.
+which(hatvalues(model_4)>3*8/392)
+```
+As we see we were right and we have several both leverage and outlier points.  
+
+**f) Use the “\*” and “:” symbols to fit linear regression models with interaction effects. Do any interactions appear to be statistically significant (score=5)?**  
+
+```{r}
+model_4_2 <- lm(mpg ~ . + displacement:year, data = Auto_num)
+summary(model_4_2)
+```
+
+```{r}
+model_4_3 <- lm(mpg ~.+displacement:weight + acceleration:cylinders + horsepower*year, data = Auto_num)
+summary(model_4_3)
+```
+As we can see the second model is better with both $R^2$ values and RSE has also got decreased/improved. Moreover, all interaction terms, have small p-values (except for cylinders:accelareation), so they all are statistically significant.  
+
+**f) Try a few different transformations of the variables, such as $log(x)$, $\sqrt(x)$, $x^2$. Comment on your findings (score=5).?** 
+
+```{r}
+model_4_4 <- lm(mpg ~ . + log(horsepower) + log(acceleration) + log(displacement) + log(weight), data = Auto_num)
+summary(model_4_4)
+```
+
+```{r}
+model_4_5 <- lm(mpg ~ . + sqrt(horsepower) + sqrt(acceleration):sqrt(displacement), data = Auto_num)
+summary(model_4_5)
+```
+
+
+```{r}
+model_4_6 <- lm(mpg ~ .-horsepower+ poly(horsepower,5), data = Auto_num)
+summary(model_4_6)
+```
+
+
+From these 3 models, we can see that for our data the model with logarithmic terms gave the best result (in terms of $R^2$ and RSE).  
+And lets fit a model, with combination of all different transformations.
+
+```{r}
+model_4_7 <- lm(log(mpg) ~.+ I(horsepower^3) + I(horsepower^2) + 
+                  I(displacement^2) + sqrt(year) + log(acceleration),data = Auto_num)
+summary(model_4_7)
+```
+
+As we can see the logarithmic transformation on the response variable and other transformations on the predictors, significantly imporve the fitting of the model. $R^2$ is improved from 0.86 to 0.9, and RSE is decreased as well.  
+As a conclusion, we can say that as observed from plots the relationship between predictors and response were not linear, and therefore non-linear transformations helped to improve the model, as expected.
+
+
+
+
+
+

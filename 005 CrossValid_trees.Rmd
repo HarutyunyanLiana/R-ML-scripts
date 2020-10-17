@@ -1,0 +1,236 @@
+---
+title: "Machine Learning | Homework 5"
+author: "Liana Harutyunyan"
+date: "April 30, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r warning=FALSE}
+library(ggplot2)
+library(caret)
+library(ISLR)
+library(MASS)
+library(ROCR)
+library(rpart.plot)
+```
+
+**Getting the data.**
+```{r}
+german_credit <- 
+  read.table("http://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data")
+
+colnames(german_credit) <- c("chk_acct", "duration", "credit_his", "purpose", 
+                            "amount", "saving_acct", "present_emp", 
+                            "installment_rate", "sex", "other_debtor", 
+                            "present_resid", "property", "age", 
+                            "other_install", "housing", "n_credits", 
+                            "job", "n_people", "telephone", 
+                            "foreign", "response")
+
+
+ind <- (german_credit$response == 2)
+german_credit$response <- rep("Negative_class", length(german_credit$response))
+german_credit$response[ind] <- "Positive_class"
+german_credit$response <- as.factor(german_credit$response)
+```
+
+**Divide dataset into training (80%) and test sets (20%).**
+```{r}
+set.seed(1)
+train_index <- createDataPartition(german_credit$response, p = 0.8, list = F)
+train_data <- german_credit[train_index,]
+test_data <- german_credit[-train_index,]
+```
+
+### 1. Apply classification trees (method = “rpart” in the Caret package) on the training set with 10-fold cross-validation. Show the confusion matrices and the ROC curves for the training and test sets. Draw the corresponding decision tree (score = 30).
+```{r}
+grid = expand.grid(cp = seq(0, 0.4, by = 0.01))
+
+train_control_1 = trainControl(method = "cv",
+                               number = 10,
+                               classProbs = T)
+
+model_tree_1 = train(response ~ .,
+                     data = train_data,
+                     method = "rpart",
+                     tuneLength = 30,         
+                     trControl = train_control_1,
+                     tuneGrid = grid)
+
+model_tree_1
+```
+Now to see the confusion matrices and ROC curves for both train and test datasets, we need to make predictions with the help of the model constructed above:
+```{r}
+pred_tree_train_1 = predict(model_tree_1, newdata = train_data, type = "raw")
+pred_tree_test_1 = predict(model_tree_1, newdata = test_data, type = "raw")
+```
+So the confusion matrix for the Training dataset is as follows:
+```{r}
+cm_train_1 = confusionMatrix(pred_tree_train_1, data = train_data$response, positive = "Positive_class")
+cm_train_1
+```
+And the one for Test dataset is:
+```{r}
+cm_test_1 = confusionMatrix(pred_tree_test_1, data = test_data$response, positive = "Positive_class")
+cm_test_1
+```
+In addition, here are the ROC curves for the training and testing data respectively:
+
+```{r}
+pred_tree_train_prob_1 = predict(model_tree_1, newdata = train_data, type = "prob")
+
+prediction_obj_train_1 = prediction(pred_tree_train_prob_1[,2], train_data$response)
+
+ROC_train_1 = performance(prediction_obj_train_1, "tpr", "fpr")
+plot(ROC_train_1, main = "ROC curve for Train dataset")
+abline(0, 1, lty = 2)
+```
+```{r}
+pred_tree_test_prob_1 = predict(model_tree_1, newdata = test_data, type = "prob")
+
+prediction_obj_test_1 = prediction(pred_tree_test_prob_1[,2], test_data$response)
+
+ROC_test_1 = performance(prediction_obj_test_1, "tpr", "fpr")
+plot(ROC_test_1, main = "ROC curve for Test dataset")
+abline(0, 1, lty = 2)
+```
+
+And here is the decision tree:
+```{r}
+rpart.plot(model_tree_1$finalModel)
+```
+
+### 2. Apply random forests (method = “rf”) on the training set. Show the confusion matrices and the ROC curves for the training and test sets. (score = 30).
+```{r}
+
+grid2 = expand.grid(mtry = seq(2, ncol(train_data)-1, by = 1))
+
+train_control_2 = trainControl(method = "repeatedcv",
+                               number = 10,
+                               repeats = 3,
+                               allowParallel = TRUE)
+
+model_tree_2 = train(response ~ .,
+                     data = train_data,
+                     method = "rf",
+                     trControl = train_control_2,
+                     tuneGrid = grid2,
+                     num.threads = 3,
+                     ntree = 500)
+
+```
+
+The confusion matrices are for training and testing sets respectively:
+```{r}
+pred_tree_train_2 = predict(model_tree_2, newdata = train_data, type = "raw")
+pred_tree_test_2 = predict(model_tree_2, newdata = test_data, type = "raw")
+
+cm_train_2 = confusionMatrix(pred_tree_train_2, data = train_data$response, positive = "Positive_class")
+cm_test_2 = confusionMatrix(pred_tree_test_2, data = test_data$response, positive = "Positive_class")
+```
+
+```{r}
+cm_train_2
+```
+
+```{r}
+cm_test_2
+```
+
+And the ROC curves for training and testing sets respectively:
+```{r}
+pred_tree_train_prob_2 = predict(model_tree_2, newdata = train_data, type = "prob")
+
+prediction_obj_train_2 = prediction(pred_tree_train_prob_2[,2], train_data$response)
+
+ROC_train_2 = performance(prediction_obj_train_2, "tpr", "fpr")
+plot(ROC_train_2, main = "ROC curve for Train dataset")
+abline(0, 1, lty = 2)
+```
+
+
+```{r}
+pred_tree_test_prob_2 = predict(model_tree_2, newdata = test_data, type = "prob")
+
+prediction_obj_test_2 = prediction(pred_tree_test_prob_2[,2], test_data$response)
+
+ROC_test_2 = performance(prediction_obj_test_2, "tpr", "fpr")
+plot(ROC_test_2, main = "ROC curve for Test dataset")
+abline(0, 1, lty = 2)
+```
+
+
+### 3. Apply boosting (method = “adaboost”) of decision trees. Show the confusion matrices and the ROC curves for training and test sets (score = 30).
+```{r}
+set.seed(1)
+train_control_3 = trainControl(method = "cv",
+                             number = 5,
+                             verbose = T)
+
+model_tree_3 = train(response ~ ., 
+                   data = train_data, 
+                   method = "adaboost",
+                   trControl = train_control_3,
+                   tuneLength = 10)
+
+```
+The Confusion matrices for Training and Test sets respectively:
+```{r}
+pred_tree_train_3 = predict(model_tree_3, newdata = train_data, type = "raw")
+cm_train_3 = confusionMatrix(pred_tree_train_3, data = train_data$response, positive = "Positive_class")
+
+cm_train_3
+```
+
+```{r}
+pred_tree_test_3 = predict(model_tree_3, newdata = test_data, type = "raw")
+cm_test_3 = confusionMatrix(pred_tree_test_3, data = test_data$response, positive = "Positive_class")
+
+cm_test_3
+```
+
+And finally, here are the ROC curves for Training and Test set for Boosting:
+```{r}
+pred_tree_train_prob_3 = predict(model_tree_3, newdata = train_data, type = "prob")
+
+prediction_obj_train_3 = prediction(pred_tree_train_prob_3[,2], train_data$response)
+
+ROC_train_3 = performance(prediction_obj_train_3, "tpr", "fpr")
+plot(ROC_train_3, main = "ROC curve for Train dataset")
+abline(0, 1, lty = 2)
+```
+
+```{r}
+pred_tree_test_prob_3 = predict(model_tree_3, newdata = test_data, type = "prob")
+
+prediction_obj_test_3 = prediction(pred_tree_test_prob_3[,2], test_data$response)
+
+ROC_test_3 = performance(prediction_obj_test_3, "tpr", "fpr")
+plot(ROC_test_3, main = "ROC curve for Test dataset")
+abline(0, 1, lty = 2)
+```
+
+### 4. Compare the precisions on the test set and pick the best model for classification (score = 10).
+```{r}
+prec_1 <- cm_test_1$byClass["Pos Pred Value"]
+prec_2 <- cm_test_2$byClass["Pos Pred Value"]
+prec_3 <- cm_test_3$byClass["Pos Pred Value"]
+precisions <- c(prec_1, prec_2, prec_3)
+names(precisions) <- c("Classification Trees", "Random Forests", "Boosting of Dec. Trees")
+
+precisions
+```
+
+So by comparing the precisions, the best model for classification is Classification Trees.
+
+
+
+
+
+
+
+
